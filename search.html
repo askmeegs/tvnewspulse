@@ -1,0 +1,109 @@
+<html>
+ <head>
+ 	<link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro|Fjalla+One' rel='stylesheet' type='text/css'>
+    <link href='/stylesheets/indexstyle.css' rel='stylesheet' type='text/css'>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+    <script type='text/javascript' src='http://www.google.com/jsapi'></script>
+    <script type='text/javascript'>
+      google.load('visualization', '1', {'packages':['annotatedtimeline']});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Date');
+        data.addColumn('number', 'Frequency');
+        data.addRows([
+          {{ timeLineDisplay }}
+        ]);
+        var TimeLinechart = new google.visualization.AnnotatedTimeLine(document.getElementById("timeline_chart_div"));
+        TimeLinechart.draw(data, {displayAnnotations: true});
+      }
+    </script>
+<script type="text/javascript">
+ $(document).ready(function () {
+    $("#button").click(getResults); 
+    function getResults() {
+        query = $("#search").val();
+      	$.post("/search", {"searchterm": query}, function(response) {
+		});
+	}
+	});
+   </script>
+ <script type="text/javascript">
+      google.load("visualization", "1", {'packages':["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Network', 'Broadcast Frequency'],
+          {{ pieChartDisplay }}
+        ]);
+        var chart = new google.visualization.PieChart(document.getElementById("pie_chart_div"));
+        chart.draw(data);//, options);
+      }
+       
+
+	</script>
+   <script language="javascript" type="text/javascript">
+	function addtext() {
+		var newtext = document.myform.inputtext.value;
+		if (document.myform.placement[1].checked) {
+			document.myform.outputtext.value = "";
+			}
+		document.myform.outputtext.value += newtext;
+	}
+	</script>
+
+
+	<title>TVNewsPulse</title>
+	</head>
+	<body>
+	<div><img src="http://i.imgur.com/n5hBMS1.png" alt="logo" width="700" height="150"></div>
+	<div id="description">track a topic through television history</div>
+	<hr>
+	<!--<label for="search">Enter search token:</label>-->
+	<input type="text" id="search">
+	<button id="button" action="/search">Submit</button>
+	<p>*Note: Searches may take about a minute to complete. </p>
+	<div id="message"></div>
+	<div id="numresults"></div>
+	<hr>
+	<h2 id="results">We found {{ numResults }} results for "{{ searchTerm }}"</h2>
+	{% if user %}
+		<p>
+			Welcome, {{ user.email()}} !
+			You can <a href="{{ logout_url }}">sign out</a>.
+		</p>
+	{% else %}
+		<p>
+			Welcome!
+			<a href="{{ login_url }}">Sign in or register</a> to save search results.
+		</p>
+	{% endif %}
+	<p> {{ results }} </p>
+	<p>Data: {{ information }}</p>
+		{% if user %}
+	<B>Select a previous search term:</B> <BR>
+	<SELECT NAME="term" SIZE="10" MULTIPLE > {{ scrollList }}
+	</SELECT>
+		{% endif %}
+	<h2>Date Frequency</h2>
+	<div id='timeline_chart_div' style='width: 700px; height: 240px;'></div>
+	<h2>Network Coverage</h2>
+	<div id="pie_chart_div" style="width: 900px; height: 500px;"></div>
+		
+	<form name="myform">
+	<table border="0" cellspacing="0" cellpadding="10"><tr>
+	<td><textarea name="inputtext">{{ textField }}</textarea></td>
+	<td><p><input type="radio" name="placement" value="append" checked size="30"> Add to Existing Text<br>
+	<input type="radio" name="placement" value="replace"> Replace Existing Text<br>
+	<input type="button" value="Add New Text" onClick="addtext();"></p>
+	</td>
+	<td><textarea name="outputtext"></textarea></td>
+	</tr></table>
+	</form>
+	
+	<hr>
+	<hr>
+  	<p>by Lindsey Tang and Megan O'Keefe, CS 249, Spring 2013</p>
+	</body>
+	
+</html>

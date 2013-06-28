@@ -1,0 +1,182 @@
+<html>
+ <head>
+ 	<link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro|Fjalla+One' rel='stylesheet' type='text/css'>
+    <link href='stylesheets/indexstyle.css' rel='stylesheet' type='text/css'>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/excite-bike/jquery-ui.css">
+    <script type='text/javascript' src='http://www.google.com/jsapi'></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script type='text/javascript'>
+    //define Jquery code for the dialog box that opens when you click it
+    $(document).ready(function() {
+   		$( "#dialog" ).dialog({ autoOpen: false });
+   		$( "#dialog" ).dialog( "option", "position", { my: "center top", at: "center top", of: window } );
+		$( "#opener" ).click(function() {
+ 		 	$( "#dialog" ).dialog( "open" );
+		});	
+	});
+	
+    google.load('visualization', '1', {'packages':['annotatedtimeline']});
+    google.load("visualization", "1", {'packages':["corechart"]});
+	
+	//function called when you press "save" for your notes, calls the "prefs" handler in python code
+	//passes the searchterm and notes to the prefs handler 
+	function saveNotes() {
+        query = document.getElementById("currentTerm").innerHTML;
+        notes = $("#notes").val();
+        	$.post("/prefs", {"searchterm": query,"notes": notes}, function(data) {
+      		console.log(Object.prototype.toString.call(data));
+      		var parsedData = JSON.parse(data);
+      		$("#notes").val(parsedData.notes);
+      		alert("Your notes for '"+query+"' are saved");
+        });
+      }
+    
+    //what happens when you press "submit"-- progress bar is instantiated, calls the searchhandler,
+    //calls display results once all the data is gotten 
+    function getResults() {
+    	$( "#progressbar" ).progressbar({
+ 			 value: false
+		});
+        query = $("#searchinput").val();
+        console.log("got " + query);
+      	$.post("/search", {"searchterm": query}, function(data) {
+      		console.log(Object.prototype.toString.call(data));
+      		var parsedData = JSON.parse(data);
+      		console.log(parsedData.numResults)
+      		$( "#progressbar" ).progressbar( "destroy" );
+      		displayResults(parsedData);
+       });
+      }
+    //function to display the number of results gotten for the search token submitted,
+    //plus updates your saved search terms dynamically.
+    function displayResults(data) {
+    	$("#numResults").html("RESULTS FOR \'" + data.token + "\':" + data.numResults);
+    	$("#currentTerm").html(data.token);
+    	$("#savedTerms").html(data.scrollList);
+    	//console.log(Object.prototype.toString.call(data.timeLineDisplay)); //prints its type- a string
+    	drawDateChart(data.timeLineDisplay);
+    	//console.log(prepPieDisplay(data.pieChartDisplay));
+    	drawNetworkChart(data.pieChartDisplay);
+    	//display the notes
+    	$("#notes").val(data.notes);
+    }
+
+    //function uses google charts to create an annotated time line for the data
+    //uses the addRow method to input points for every date(Y,M,D string ints) and frequency
+    //the first three items make the datetime object(google wants them as strings)
+    //the fourth item has to be turned into an integer, represents the frequency for 
+    //the particular date, every consecutive 4 items follow that pattern 
+      function drawDateChart(input) {
+      	var array = input.split(",");
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Date');//X-axis label
+        data.addColumn('number', 'Frequency');//Y-axis label
+        for (var i=0; i<array.length; i=i+4){
+        	data.addRow([new Date(array[i], array[i+1],array[i+2]), parseInt(array[i+3])]);
+        	}
+        var TimeLinechart = new google.visualization.AnnotatedTimeLine(document.getElementById("timeline_chart_div"));
+        TimeLinechart.draw(data, {displayAnnotations: true});
+      }
+      
+    //function uses google charts to create a pie chart for the data
+    //the first item of the list is a string representing networks, the second item is
+    //parsed into type integer representing broadcast frequency
+    //order-> network, frequency, network, frequency, etc
+      function drawNetworkChart(input) {
+      	var array = input.split(",");
+       	google.load("visualization", "1", {packages:["corechart"]});
+    	var data = new google.visualization.DataTable();
+    	data.addColumn('string', 'Network');//label for the slices
+    	data.addColumn('number', 'Broadcast Frequency');//portions of the whole
+        for (var i=0; i<array.length; i=i+2){
+        	data.addRow([array[i],parseInt(array[i+1])]);
+        	}
+        var chart = new google.visualization.PieChart(document.getElementById("pie_chart_div"));
+        chart.draw(data);
+      }
+      
+      //calls when a user selects a term from the search history scroll list
+      //similar to getResults(), but this gets the query from the search history
+      //progress bar is instantiated, calls the searchhandler, 
+      //calls display results once all the data is gotten 
+      function getPreviousSearch() {     
+      	$( "#progressbar" ).progressbar({
+ 			 value: false
+		});
+    	var e = document.getElementById("savedTerms");//get the combobox
+    	var query = e.options[e.selectedIndex].text;
+      	$.post("/search", {"searchterm": query}, function(data) {
+      		console.log(Object.prototype.toString.call(data));
+      		var parsedData = JSON.parse(data);
+      		console.log(parsedData.numResults)
+      		$( "#progressbar" ).progressbar( "destroy" );
+      		displayResults(parsedData);
+       });
+      }
+      
+	</script>
+	<title>TVNewsPulse</title>
+	</head>
+	<body>
+	<div id="userlogin">
+	{% if user %}
+		<p>
+			Welcome, {{ user.email()}} !
+			You can <a href="{{ logout_url }}">sign out</a>.
+		</p>
+	{% else %}
+		<p>
+			Welcome!
+			<a href="{{ login_url }}">Sign in or register</a> to save search results.
+		</p>
+	{% endif %}
+	<p> {{ results }} </p>
+	</div>
+	
+	<div><img id="titleimage" src="http://i.imgur.com/n5hBMS1.png" alt="logo" width="700" height="150"></div>
+	<div id="description">track a topic through television history (2009-present)</div>
+	<div style="margin-bottom:5px;">
+	<input type="text" id="searchinput">
+	<input id="searchButton" style="width:120;height:40;background-color:#E8E8E8" type="button" action="/search" value="search" onclick="getResults();" />
+	</div>
+	<div id="progressbar"></div>
+	<div id="lastItem"><button id="opener" style="background-color:white; padding-top:5px;">(why is my search taking so long?)</button></div>
+	<div id="dialog" title="Lengthy Searches">Each time you press search, this site sends out requests to the 
+	<a href="http://archive.org/details/tv" target="_blank"> TV News Archive.</a> Some common searches have thousands of results, and
+	with Archive.org's and our current infrastructure, sometimes getting this data can take a few minutes. So sit 
+	back, or grab a snack, and relish in the wild anticipation for the arrival your broadcast data!</div>
+	</div>
+	<hr>
+	<div id="numResults"></div>
+	<!-- currentTerm div contains only the current search token- it's the source for the search
+	token in the notes saving process. The div is hidden because numResults include 
+	the same information and more (which makes numResults unusable for notes saving). 
+ -->
+	<div id="currentTerm" style="visibility: hidden"></div>
+
+		{% if user %}
+		<B>Select a term from your search history:</B>
+	<select id='savedTerms' name='savedTerms' onchange="getPreviousSearch()">
+	{{ scrollList }}
+	</select>
+<BR>
+<B>Record your observations:</B>
+<BR>
+<textarea name="notes" id="notes" rows="6" cols="80"></textarea>
+<div><input id="saveNotes" action="/prefs" type="button" onclick="saveNotes();" value="save" style="width:90;height:40;font-size:15px;background-color:#E8E8E8"/></div>
+</form>
+
+		{% endif %}
+	<h2 id="success?"></h2>
+	<h2 id="datestitle"></h2>
+	<div id='timeline_chart_div' style='width: 800px; height: 300px; margin: 0 auto;'></div>
+	<h2 id="networkstitle"></h2>
+	<div id="pie_chart_div" style="width: 900px; height: 500px; margin: 0 auto;"></div>
+	<hr>
+	<hr>
+  	<p id="by">by Lindsey Tang '15 and Megan O'Keefe '16 <br>Wellesley College<br>CS 249, Spring 2013</p>
+  	<p id="poweredBy">powered by <a href="https://developers.google.com/appengine/docs/python/overview">Google App Engine</a></p>
+	</body>
+	
+</html>
